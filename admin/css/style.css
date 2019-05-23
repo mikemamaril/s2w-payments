@@ -1,0 +1,18 @@
+/**
+ * All of the CSS for your admin-specific functionality should be
+ * included in this file.
+ */
+
+ #airdatepicker {
+	 width:300px;
+	 padding:4px 10px;
+	 cursor:pointer;
+	 text-align:center;
+	 background:#fff;
+	 border:1px solid #ccc;
+ }
+
+ #s2w-clear-cache {
+	 background-color:red;
+	 color:white;
+ }
