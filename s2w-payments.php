@@ -14,9 +14,9 @@
  *
  * @wordpress-plugin
  * Plugin Name:       Square To WooCommerce Payments
- * Plugin URI:        http://mikemamaril.com/code/s2w-payments/
+ * Plugin URI:        https://github.com/mikemamaril/s2w-payments
  * Description:       Search fullfilled payments from Square and import them to WooCommerce
- * Version:           1.0.0
+ * Version:           1.0.1
  * Author:            Mike Mamaril
  * Author URI:        http://mikemamaril.com/
  * License:           GPL-2.0+
@@ -35,7 +35,7 @@ if ( ! defined( 'WPINC' ) ) {
  * Start at version 1.0.0 and use SemVer - https://semver.org
  * Rename this for your plugin and update it as you release new versions.
  */
-define( 'S2W_PAYMENTS_VERSION', '1.0.0' );
+define( 'S2W_PAYMENTS_VERSION', '1.0.1' );
 
 /**
  * @param type $data
@@ -44,6 +44,14 @@ define( 'S2W_PAYMENTS_VERSION', '1.0.0' );
 function s2w_log($type, $data) {
     error_log("[$type] [" . date("Y-m-d H:i:s") . "] " . print_r($data, true) . "\n", 3, dirname(__FILE__) . '/logs.log');
 }
+
+if( ! class_exists( 'S2W_Updater' ) ){
+	include_once( plugin_dir_path( __FILE__ ) . 'updater.php' );
+}
+$updater = new S2W_Updater( __FILE__ );
+$updater->set_username( 'mikemamaril' );
+$updater->set_repository( 's2w-payments' );
+$updater->initialize();
 
 /**
  * The code that runs during plugin activation.
