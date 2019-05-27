@@ -149,6 +149,14 @@ class S2w_Payments_Admin {
 			$this->plugin_name . '-settings',
 			array($this,'display_settings')
 		);
+		add_submenu_page( 
+			$this->plugin_name, 
+			'S2W Payments Support',
+			'Support',
+			'manage_options', 
+			$this->plugin_name . '-support',
+			array($this,'display_support')
+		);
 
 		add_submenu_page( 
 			$this->plugin_name, 
@@ -941,5 +949,9 @@ class S2w_Payments_Admin {
 		}
 
 		include_once( 'partials/import-to-wc.php' );
+	}
+
+	public function display_support() {
+		include_once( 'partials/support.php' );
 	}
 }
