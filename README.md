@@ -3,3 +3,8 @@
 Search fullfilled payments from Square and import them to WooCommerce
 
 Create your Square App to get credentials for the plugin here: https://squareup.com/us/en/developers
+
+## Requirements
+-Wordpress 4.7 or higher
+-Woocommerce 3.0 or higher
+-PHP 5.7 or higher

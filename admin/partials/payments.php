@@ -43,6 +43,13 @@
 			return $actions;
 		}
 		function process_bulk_action() {
+			if ('import2wc' === $this->current_action()) {	
+				$ids = isset($_REQUEST['id']) ? $_REQUEST['id'] : array();
+				if (is_array($ids)) $ids = implode(',', $ids);
+	
+				if (!empty($ids)) {
+				}	
+			}
 		}
 
 		function prepare_items($results = array()) {
@@ -101,9 +108,11 @@
 			}
 
 			$actions = array(
-				'import2wc' => sprintf('<a href="?page=s2w-payments&id=%1$s">%2$s</a>', 
+				'import2wc' => sprintf('<a href="%3$s&ids=%1$s">%2$s</a>', 
 										$item['pay_id'],
-										__('Import to WooCommerce')),
+										__('Import to WooCommerce'),
+										admin_url('admin.php?page=s2w-payments-import-to-wc')
+									),
 			);
 	
 			return sprintf(
@@ -179,7 +188,7 @@
 			</form>
 		</div>
 		<form id="persons-table" method="GET">
-		<input type="hidden" name="page" value="<?php echo isset($_REQUEST['page']) ? $_REQUEST['page'] : ''; ?>"/>
+			<input type="hidden" name="page" value="<?php echo isset($_REQUEST['page']) ? $_REQUEST['page'] : ''; ?>"/>
 			<?php
 				$table = new Square_Payments_List_Table();
 				$table->prepare_items($results);

@@ -151,15 +151,20 @@ class S2w_Payments {
 	 * @access   private
 	 */
 	private function define_admin_hooks() {
-
 		$plugin_admin = new S2w_Payments_Admin( $this->get_plugin_name(), $this->get_version() );
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
 
-		// Add menu item
+		// add menu items
 		$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_plugin_admin_menu' );
-		//add setytings
+		/**
+		 * hide/remove menu items 
+		 * @since: 1.0.2
+		 */
+		$this->loader->add_action( 'admin_head', $plugin_admin, 'hide_plugin_admin_menu_items' );
+
+		// add setytings
 		$this->loader->add_action( 'admin_init', $plugin_admin, 'add_plugin_settings' );
 
 		// add settings link

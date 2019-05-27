@@ -117,6 +117,11 @@ class S2w_Payments_Admin {
 		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/script.js', array( 'jquery' ), $this->version, false );
 	}
 
+	/**
+	 * Create Admin pages and links
+	 *
+	 * @since    1.0.0
+	 */
 	public function add_plugin_admin_menu() {
 		add_menu_page( 
 			'S2W Payments', //page title
@@ -137,15 +142,38 @@ class S2w_Payments_Admin {
 			array($this,'display_payments') //function
 		);
 		add_submenu_page( 
-			$this->plugin_name, //parent slug
-			'Square to WooCommerce Settings', // page title 
-			'Settings', //menu title
-			'manage_options', //capabilities
-			$this->plugin_name . '-settings', //menu slug
-			array($this,'display_settings') //function
+			$this->plugin_name, 
+			'Square to WooCommerce Settings',
+			'Settings',
+			'manage_options', 
+			$this->plugin_name . '-settings',
+			array($this,'display_settings')
+		);
+
+		add_submenu_page( 
+			$this->plugin_name, 
+			'Imported Square to WooCommerce orders',
+			'Import to WooCommerce',
+			'manage_options', 
+			$this->plugin_name . '-import-to-wc',
+			array($this,'display_import_to_wc')
 		);
 	}
 
+	/**
+	 * Hide submenu pages from the menu
+	 *
+	 * @since    1.0.2
+	 */
+	public function hide_plugin_admin_menu_items() {
+		remove_submenu_page( $this->plugin_name , $this->plugin_name . '-import-to-wc' );
+	}
+
+	/**
+	 * Adds settings link to the plugin page
+	 *
+	 * @since    1.0.0
+	 */
 	public function add_action_links( $links ) {
 		$settings_link = array(
 			'<a href="' . admin_url( 'admin.php?page=' . $this->plugin_name . '-settings' ) . '">' . __('Settings', $this->plugin_name) . '</a>',
@@ -153,6 +181,11 @@ class S2w_Payments_Admin {
 		return array_merge( $settings_link, $links );
 	}
 
+	/**
+	 * Create plugin settings page using the settings API
+	 *
+	 * @since    1.0.0
+	 */
 	public function add_plugin_settings() {
 		if (isset($_GET['settings-updated'])) {
 			add_settings_error( $this->plugin_name . '-notices', 'settings-updated', 'Settings Updated', 'updated' );
@@ -179,82 +212,149 @@ class S2w_Payments_Admin {
 			$this->plugin_name     
 		);
 
+		$gateways = array();
+		$payment_gateways = WC()->payment_gateways->payment_gateways();
+		if (is_array($payment_gateways)) {
+			foreach($payment_gateways as $gateway_name => $gateway_obj) {
+				$gateways[$gateway_name] = ucwords($gateway_name);
+			}
+		}
+
+		$statuses = array();
+		$order_statuses = wc_get_order_statuses();
+		if (is_array($order_statuses)) {
+			foreach($order_statuses as $k => $v) {
+				$statuses[$v] = ucwords($v);
+			}
+		}
+
 		$fields = array(
 			array(
 				'uid' => $this->plugin_name . '_environment',
-				'label' => 'Environment',
+				'label' => __('Environment', $this->plugin_name),
 				'section' => $this->plugin_name . '_general_settings',
 				'type' => 'select',
 				'options' => array(
-					'sandbox' => 'Sandbox',
-					'production' => 'Production'
+					'sandbox' => __('Sandbox', $this->plugin_name),
+					'production' => __('Production', $this->plugin_name)
 				),
 				'default' => array( 'sandbox' ),
-				'supplemental' => 'Make sure to fill out the required credentials below for the selected environment.'
+				'supplemental' => __("Make sure to fill out the required credentials below for the selected environment.", $this->plugin_name)
 			),
 			array(
 				'uid' => $this->plugin_name . '_cache_lifetime',
-				'label' => 'Cache Lifetime',
+				'label' => __('Cache Lifetime', $this->plugin_name),
 				'section' => $this->plugin_name . '_general_settings',
 				'type' => 'select',
 				'options' => array(
-					'1' => '1 hour',
-					'6' => '6 hours',
-					'12' => '12 hours',
-					'24' => '24 hours',
-					'48' => '48 hours',
+					'1' => __('1 hour', $this->plugin_name),
+					'6' => __('6 hours', $this->plugin_name),
+					'12' => __('12 hours', $this->plugin_name),
+					'24' => __('24 hours', $this->plugin_name),
+					'48' => __('48 hours', $this->plugin_name),
 				),
 				'helper' => 'hours',
 				'default' => array( '1' ),
-				'supplemental' => 'Number of hours to keep the cached results.'
+				'supplemental' => __("Number of hours to keep the cached results.", $this->plugin_name)
 			),
 			array(
 				'uid' => $this->plugin_name . '_disable_ssl_verification',
-				'label' => 'SSL Verification',
+				'label' => __('SSL Verification', $this->plugin_name),
 				'section' => $this->plugin_name . '_general_settings',
 				'type' => 'checkbox',
 				'options' => array(
-					'1' => 'Disable',
+					'1' => __('Disable', $this->plugin_name),
 				),
 				'default' => array( '1' ),
 				'helper' => 'Verify SSL when connecting to Square API.',
-				'supplemental' => 'Disable this if you do not have an SSL certificate on your domain.'
+				'supplemental' => __("Disable this if you do not have an SSL certificate on your domain", $this->plugin_name),
+			),
+			array(
+				'uid' => $this->plugin_name . '_create_customer',
+				'label' => __("Imported Customer does't exist", $this->plugin_name),
+				'section' => $this->plugin_name . '_general_settings',
+				'type' => 'checkbox',
+				'options' => array(
+					'1' => __('Create Customer', $this->plugin_name),
+				),
+				'default' => array( '1' ),
+				'supplemental' => __("Create a new customer if the customer doesn't exist when importing orders. Orders will <b>not be imported</b> if a user is not found and <i>Allow guest orders</i> is not enabled.", $this->plugin_name),
+			),
+			array(
+				'uid' => $this->plugin_name . '_allow_guest_orders',
+				'label' => __("Allow guest orders", $this->plugin_name),
+				'section' => $this->plugin_name . '_general_settings',
+				'type' => 'checkbox',
+				'options' => array(
+					'1' => __('Enable', $this->plugin_name),
+				),
+				'default' => array( '0' ),
+				'supplemental' => __("Allow imported orders for non-existent users", $this->plugin_name),
+			),
+			array(
+				'uid' => $this->plugin_name . '_partial_item_match',
+				'label' => __("Import a transaction even if not all SKU's are found", $this->plugin_name),
+				'section' => $this->plugin_name . '_general_settings',
+				'type' => 'checkbox',
+				'options' => array(
+					'1' => __('Enable', $this->plugin_name),
+				),
+				'default' => array( '1' ),
+				'supplemental' => __("If disabled, a transaction will <b>not be imported</b> if not all SKU's in the Square transaction match with your WooCommerce products", $this->plugin_name)
+			),
+			array(
+				'uid' => $this->plugin_name . '_payment_gateway',
+				'label' => __('Payment Gateway', $this->plugin_name),
+				'section' => $this->plugin_name . '_general_settings',
+				'type' => 'select',
+				'options' => $gateways,
+				'default' => array( 'square' ),
+				'supplemental' => __("The payment gateway used when creating orders.", $this->plugin_name)
+			),
+			array(
+				'uid' => $this->plugin_name . '_order_status',
+				'label' => __('Order Status', $this->plugin_name),
+				'section' => $this->plugin_name . '_general_settings',
+				'type' => 'select',
+				'options' => $statuses,
+				'default' => array( 'Processing' ),
+				'supplemental' => __("The order status used when creating orders.", $this->plugin_name)
 			),
 
 			array(
 				'uid' => $this->plugin_name . '_production_app_id',
-				'label' => 'Application ID',
+				'label' => __('Application ID', $this->plugin_name),
 				'section' => $this->plugin_name . '_production_settings',
 				'type' => 'text',
 			),
 			array(
 				'uid' => $this->plugin_name . '_production_access_token',
-				'label' => 'Access Token',
+				'label' => __('Access Token', $this->plugin_name),
 				'section' => $this->plugin_name . '_production_settings',
 				'type' => 'text',
 			),
 			array(
 				'uid' => $this->plugin_name . '_production_location_id',
-				'label' => 'Location ID',
+				'label' => __('Location ID', $this->plugin_name),
 				'section' => $this->plugin_name . '_production_settings',
 				'type' => 'text',
 			),
 
 			array(
 				'uid' => $this->plugin_name . '_sandbox_app_id',
-				'label' => 'Application ID',
+				'label' => __('Application ID', $this->plugin_name),
 				'section' => $this->plugin_name . '_sandbox_settings',
 				'type' => 'text',
 			),
 			array(
 				'uid' => $this->plugin_name . '_sandbox_access_token',
-				'label' => 'Access Token',
+				'label' => __('Access Token', $this->plugin_name),
 				'section' => $this->plugin_name . '_sandbox_settings',
 				'type' => 'text',
 			),
 			array(
 				'uid' => $this->plugin_name . '_sandbox_location_id',
-				'label' => 'Location ID',
+				'label' => __('Location ID', $this->plugin_name),
 				'section' => $this->plugin_name . '_sandbox_settings',
 				'type' => 'text',
 			),
@@ -277,10 +377,11 @@ class S2w_Payments_Admin {
 		}
 	}
 
-	public function section_sandbox_settings() {
-		echo '<p>Updated sandbox credentials.</p>';
-	}
-
+	/**
+	 * Generate the HTML fields for each setting
+	 *
+	 * @since    1.0.0
+	 */
 	public function settings_field_callback( $arguments ) {
 		$optional_keys = array(
 			'options' => false,
@@ -354,32 +455,26 @@ class S2w_Payments_Admin {
 		}
 	}
 
+
+	/**
+	 * Render payments page
+	 *
+	 * @since    1.0.0
+	 */
 	public function display_payments() {
-		$option = get_option($this->plugin_name . '_environment');
-		$environment = 'sandbox';
-		if (is_array($option)) {
-			$option = array_reverse($option, true);
-			$environment = array_pop($option);
-		}
+		$option = get_option($this->plugin_name . '_environment', 'sandbox');
+		$environment = (is_array($option)) ? array_pop($option) : $option;
 
 		$environment = ($option = array_reverse(get_option($this->plugin_name . '_environment'))) ? array_pop($option) : 'sandbox';
 		$app_id = get_option($this->plugin_name . "_{$environment}_app_id");
 		$access_token = get_option($this->plugin_name . "_{$environment}_access_token");
 		$location_id = get_option($this->plugin_name . "_{$environment}_location_id");
 
-		$option = get_option($this->plugin_name . '_cache_lifetime');
-		$cache_lifetime = 1;
-		if (is_array($option)) {
-			$option = array_reverse($option, true);
-			$cache_lifetime = array_pop($option);
-		}
+		$option = get_option($this->plugin_name . '_cache_lifetime', 24);
+		$cache_lifetime = (is_array($option)) ? array_pop($option) : $option;
 
-		$option = get_option($this->plugin_name . '_disable_ssl_verification');
-		$disable_ssl_verfication = 0;
-		if (is_array($option)) {
-			$option = array_reverse($option, true);
-			$disable_ssl_verfication = array_pop($option);
-		}
+		$option = get_option($this->plugin_name . '_disable_ssl_verification', 0);
+		$disable_ssl_verfication = (is_array($option)) ? array_pop($option) : $option;
 
 		$has_credentials = true;
 
@@ -536,7 +631,21 @@ class S2w_Payments_Admin {
 												if (!empty($customer_id)) {
 													try {
 														$_customer = $customerssApi->retrieveCustomer( $customer_id );
-					
+														$_address = $_customer->getCustomer()->getAddress();
+														$address = false;
+														if (is_object($_address)) {
+															$address = array(
+																'address_1' => $_address->getAddressLine1(),
+																'address_2' => $_address->getAddressLine2() . ' ' . $_address->getAddressLine3(),
+																'postcode' => $_address->getPostalCode(),
+																'country' => $_address->getCountry(),
+																'state' => $_address->getAdministrativeDistrictLevel1(),
+																'city' => $_address->getLocality(),
+																'company' => $_address->getOrganization(),
+																'first_name' => (!empty($_address->getFirstName())) ? $_address->getFirstName() : $_customer->getCustomer()->getGivenName(),
+																'last_name' => (!empty($_address->getLastName())) ? $_address->getLastName() : $_customer->getCustomer()->getFamilyName(),
+															);
+														}
 														$customer = array(
 															'customer_id' => $customer_id,
 															'first_name' => $_customer->getCustomer()->getGivenName(),
@@ -544,6 +653,7 @@ class S2w_Payments_Admin {
 															'nick_name' => $_customer->getCustomer()->getNickname(),
 															'email' => $_customer->getCustomer()->getEmailAddress(),
 															'phone' => $_customer->getCustomer()->getPhoneNumber(),
+															'address' => $address
 														);
 														$customer_name = sprintf('%s %s', $customer['first_name'], $customer['last_name']);
 														break;
@@ -598,7 +708,238 @@ class S2w_Payments_Admin {
 		$nonce = wp_create_nonce(basename(__FILE__));
 		include_once( 'partials/payments.php' );
 	}
+
+	/**
+	 * Render settings page
+	 *
+	 * @since    1.0.0
+	 */
 	public function display_settings() {
 		include_once( 'partials/settings.php' );
+	}
+
+	/**
+	 * Render imports page
+	 *
+	 * @since    1.0.2
+	 */
+	public function display_import_to_wc() {
+		$option = get_option($this->plugin_name . '_create_customer', 1);
+		$create_customer = (is_array($option)) ? array_pop($option) : $option;
+
+		$option = get_option($this->plugin_name . '_partial_item_match', 1);
+		$partial_item_match = (is_array($option)) ? array_pop($option) : $option;
+		
+		$option = get_option($this->plugin_name . '_allow_guest_orders', 0);
+		$allow_guest_orders = (is_array($option)) ? array_pop($option) : $option;
+		
+		$option = get_option($this->plugin_name . '_payment_gateway', 'square');
+		$payment_gateway_key = (is_array($option)) ? array_pop($option) : $option;
+		$payment_gateway = false;
+		$payment_gateways = WC()->payment_gateways->payment_gateways();
+		if (is_array($payment_gateways) && array_key_exists($payment_gateway_key,$payment_gateways)) {
+			$payment_gateway = $payment_gateways[$payment_gateway_key];
+		}
+
+		$option = get_option($this->plugin_name . '_order_status', 'Processing');
+		$order_status = (is_array($option)) ? array_pop($option) : $option;
+		
+		$results = get_transient( $this->transient_labels['results'] );
+		$response = array();
+		if (is_array($results) && count($results)) {
+			if (!empty(trim($_GET['ids']))) {
+				$ids = array_unique(array_filter(explode(',',$_GET['ids'])));
+				if (count($ids)) {
+					foreach($ids as $id) {
+						$process = array(
+							'id' => $id,
+							'status' => 'Fail',
+							'msg' => array()
+						);
+						if (array_key_exists($id,$results)) {
+							$result = $results[$id];
+							$create_order = false;
+							$has_customer = false;
+
+							//check if we already imported the order
+							$s2w_query = new WP_Query(array(
+								'posts_per_page' => '1',
+								'post_type' => 'shop_order',
+								'post_status' => 'any',
+								'meta_query' => array(
+									'relation' => 'AND',
+									array(
+										'key' => '_s2w_square_pay_id',
+										'value' => $result['pay_id'],
+										'compare' => 'LIKE',
+									)
+								)
+							));
+							if ($s2w_query->have_posts()) {
+								while ($s2w_query->have_posts()) {
+									$s2w_query->the_post();
+									$order_id = get_the_id();
+									$process['msg'][] = __("Transaction <b>{$result['pay_id']}</b> already exists with order #{$order_id} already exists", $this->plugin_name);
+									$process['status'] = __("Exists", $this->plugin_name);
+								}
+							} else {
+								//check products by sku first
+								$product_ids = array();
+								if (count($result['items'])) {
+									foreach($result['items'] as $item) {
+										if (!empty($item['sku'])) {
+											$product_id = wc_get_product_id_by_sku( $item['sku'] );
+											if ($product_id) {
+												$product_ids[$product_id] = $item['quantity'];
+											} else {
+												$process['msg'][] = __("No matching SKU (<i>{$item['name']}</i>) found for product: {$item['name']}", $this->plugin_name);	
+											}
+										} else {
+											$process['msg'][] = __("No SKU returned for: {$item['name']}", $this->plugin_name);
+										}
+									}
+
+									//we have matching wc products, let's create an order
+									if (count($product_ids)) { 
+										$create_order = true;
+										//or not, we if want all items matched
+										if (count($result['items']) != count($product_ids) && $partial_item_match != '1') {
+											$create_order = false;
+											$process['msg'][] = __("Not all SKU's were matched, halting with import. <i>Import a transaction even if not all SKU's are found</i> setting is not enabled. ", $this->plugin_name);
+											$process['status'] = __("Fail", $this->plugin_name);
+										} else {
+											$process['msg'][] = __("Only ".count($product_ids)." SKU's were matched, proceeding with import.", $this->plugin_name);
+										}
+									} else {
+										$process['msg'][] = __("No matching WooCommerce products matched", $this->plugin_name);
+									}
+								} else {
+									$process['msg'][] = __("No items returned for this transaction", $this->plugin_name);
+								}
+
+								if ($create_order) {
+									//check if we have a square customer
+									if (is_array($result['customer'])) {
+										$user = get_user_by('email', $result['customer']['email']);
+										
+										//create a user if we don't find any
+										if ($user === false && $create_customer == 1) {
+											// random password with 12 chars
+											$random_password = wp_generate_password();
+
+											// create new user with email as username & newly created pw
+											$user_id = wp_insert_user(array(
+												'user_pass' => $random_password,
+												'user_login' => $result['customer']['email'],
+												'user_email' => $result['customer']['email'],
+												'first_name' => $result['customer']['first_name'],
+												'last_name' => $result['customer']['last_name'],
+												'display_name' => $result['customer']['first_name'] . ' ' .  $result['customer']['last_name'],
+												'role' => 'customer', // woocommerce user role
+											));
+
+											if (is_numeric($user_id)) {
+												$address_fields = array(
+													'address_1',
+													'address_2',
+													'postcode',
+													'country',
+													'state',
+													'city',
+													'company',
+													'first_name',
+													'last_name',
+
+													'email',
+													'phone',
+												);
+												if (is_array($result['customer']['address'])) {
+													//append address info from make customer info
+													$result['customer']['address']['email'] = $result['customer']['email'];
+													$result['customer']['address']['phone'] = $result['customer']['phone'];
+
+													foreach(array('billing','shipping') as $type) {
+														foreach($address_fields as $field) {
+															update_user_meta( $user_id, "{$type}_{$field}", $result['customer']['address'][$field] );
+														}
+													}
+												}
+
+												$user = get_user_by('ID', $user_id);
+												$process['msg'][] = __("Created user id #{$user_id}", $this->plugin_name);
+											} else {
+												$process['msg'][] = __("unable to create user: {$result['customer']['email']}", $this->plugin_name);
+												s2w_log('wp_insert_user', $user_id);
+											}
+										}
+
+										if ($user === false) {
+											if ($allow_guest_orders == '1') {
+												$has_customer = true;
+												$process['msg'][] = __("No user found for email: {$result['customer']['email']}. Processing as a guest order.", $this->plugin_name);
+											} else {
+												$process['msg'][] = __("No user found for email: {$result['customer']['email']}. Allow guest orders setting is disabled.", $this->plugin_name);
+											}
+										} else {
+											$has_customer = true;
+											$process['msg'][] = __("User {$result['customer']['email']} found with id #{$user->ID}.", $this->plugin_name);
+										}
+									} else {
+										$process['msg'][] = __("No Square customer returned for this transactions", $this->plugin_name);
+									}
+								}
+
+								//we have our prodcts and user now we can create the order
+								if ($has_customer) {
+									$user_id = ($user === false) ? null : $user->ID;
+									$order = wc_create_order(array(
+										'status' => strtolower($order_status),
+										'customer_id' => $user_id
+									));
+
+									if (is_array($result['customer']['address'])) {
+										$address = array(
+											'first_name' => $result['customer']['address']['first_name'],
+											'last_name'  => $result['customer']['address']['last_name'],
+											'company'    => $result['customer']['address']['company'],
+											'email'      => $result['customer']['email'],
+											'phone'      => $result['customer']['phone'],
+											'address_1'  => $result['customer']['address']['address_1'],
+											'address_2'  => $result['customer']['address']['address_2'],
+											'city'       => $result['customer']['address']['city'],
+											'state'      => $result['customer']['address']['state'],
+											'postcode'   => $result['customer']['address']['postcode'],
+											'country'    => $result['customer']['address']['country'],
+										);
+										$order->set_address( $address, 'billing' );
+										$order->set_address( $address, 'shipping' );
+									}
+									foreach($product_ids as $product_id => $quantity) {
+										$order->add_product( get_product( $product_id ), $quantity); // Use the product IDs to add
+									}
+									$order->calculate_totals();
+									$order->update_meta_data( '_s2w_square_pay_id', $result['pay_id'] );
+									//$order->update_status( strtolower($order_status), 'Order created by S2W-Payments - ', TRUE);
+
+									$order_id = $order->save();
+
+									$process['msg'][] = __("Order #{$order_id} created with status: {$order_status}", $this->plugin_name);
+									$process['status'] = __("Ok", $this->plugin_name);
+								}
+							}
+						} else {
+							$process['msg'][] = __("Transaction not found in search results", $this->plugin_name);
+						}
+						array_push($response, $process);
+					}
+				}
+			} else {
+				add_settings_error( $this->plugin_name . '-import', 'no-results', __("No transactions given.", $this->plugin_name) ); 
+			}
+		} else {
+			add_settings_error( $this->plugin_name . '-import', 'no-results', __("No cached results found.", $this->plugin_name) ); 
+		}
+
+		include_once( 'partials/import-to-wc.php' );
 	}
 }
