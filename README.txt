@@ -9,7 +9,7 @@ Requires PHP: 5.7
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Search fullfilled payments from Square and import them to WooCommerce as orders
+Search fullfilled payments from Square and import them to WooCommerce as orders by matching product SKU's on both Square and WooCommerce.
 
 == Description ==
 

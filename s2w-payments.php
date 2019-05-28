@@ -15,7 +15,7 @@
  * @wordpress-plugin
  * Plugin Name:       Square To WooCommerce Payments
  * Plugin URI:        https://github.com/mikemamaril/s2w-payments
- * Description:       Search fullfilled payments from Square and import them to WooCommerce
+ * Description:       Search fullfilled payments from Square and import them to WooCommerce as orders by matching product SKU's on both Square and WooCommerce.
  * Version:           1.0.5
  * Author:            Mike Mamaril
  * Author URI:        http://mikemamaril.com/
