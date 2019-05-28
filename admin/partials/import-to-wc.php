@@ -78,6 +78,7 @@
 	<h2><?php echo esc_html(get_admin_page_title()); ?></h2>
 	<hr class="wp-header-end">
 	<?php settings_errors( $this->plugin_name . '-import' ); ?>
+	<?php settings_errors( $this->plugin_name . '-notices' ); ?>
 
 	<form id="persons-table" method="GET">
 			<input type="hidden" name="page" value="<?php echo isset($_REQUEST['page']) ? $_REQUEST['page'] : ''; ?>"/>

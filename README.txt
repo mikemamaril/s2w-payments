@@ -48,7 +48,14 @@ No, But I'll update the plugin as my schedule permits.
 = 1.0 =
 * Initial release
 
+= 1.0.5 =
+* Submitted to Wordpress.org
+* Added assets for plugin submission
+
 == Upgrade Notice ==
 
 = 1.0.3 =
 * Updates fulled from Github
+
+= 1.0.5 =
+* Adds a custom meta data to your woocommerce orders

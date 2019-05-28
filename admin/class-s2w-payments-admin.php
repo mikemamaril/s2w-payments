@@ -213,18 +213,20 @@ class S2w_Payments_Admin {
 		);
 
 		$gateways = array();
-		$payment_gateways = WC()->payment_gateways->payment_gateways();
-		if (is_array($payment_gateways)) {
-			foreach($payment_gateways as $gateway_name => $gateway_obj) {
-				$gateways[$gateway_name] = ucwords($gateway_name);
-			}
-		}
-
 		$statuses = array();
-		$order_statuses = wc_get_order_statuses();
-		if (is_array($order_statuses)) {
-			foreach($order_statuses as $k => $v) {
-				$statuses[$v] = ucwords($v);
+		if ( class_exists( 'WooCommerce' ) ) {
+			$payment_gateways = WC()->payment_gateways->payment_gateways();
+			if (is_array($payment_gateways)) {
+				foreach($payment_gateways as $gateway_name => $gateway_obj) {
+					$gateways[$gateway_name] = ucwords($gateway_name);
+				}
+			}
+
+			$order_statuses = wc_get_order_statuses();
+			if (is_array($order_statuses)) {
+				foreach($order_statuses as $k => $v) {
+					$statuses[$v] = ucwords($v);
+				}
 			}
 		}
 
@@ -477,6 +479,7 @@ class S2w_Payments_Admin {
 		$disable_ssl_verfication = (is_array($option)) ? array_pop($option) : $option;
 
 		$has_credentials = true;
+		$has_woocommerce = true;
 
 		if (empty($app_id)) { 
 			add_settings_error( $this->plugin_name . '-notices', 'invalid-app-id', "No <i>{$environment}</i> Application ID specified", 'error' ); 
@@ -491,7 +494,12 @@ class S2w_Payments_Admin {
 			$has_credentials = false;
 		}
 
-		if ($has_credentials) {
+		if ( !class_exists( 'WooCommerce' ) ) {
+			add_settings_error( $this->plugin_name . '-notices', 'no-woocommerce', __("Please install and activate WooCommerce first", $this->plugin_name), 'error' ); 
+			$has_woocommerce = false;
+		}
+
+		if ($has_credentials && $has_woocommerce) {
 			$plugin_path = trailingslashit(dirname(plugin_dir_path( __FILE__ )));
 			require($plugin_path.'includes/vendor/autoload.php');
 	
@@ -724,220 +732,230 @@ class S2w_Payments_Admin {
 	 * @since    1.0.2
 	 */
 	public function display_import_to_wc() {
-		$option = get_option($this->plugin_name . '_create_customer', 1);
-		$create_customer = (is_array($option)) ? array_pop($option) : $option;
+		$has_woocommerce = true;
+		$response = array();
 
-		$option = get_option($this->plugin_name . '_partial_item_match', 1);
-		$partial_item_match = (is_array($option)) ? array_pop($option) : $option;
-		
-		$option = get_option($this->plugin_name . '_allow_guest_orders', 0);
-		$allow_guest_orders = (is_array($option)) ? array_pop($option) : $option;
-		
-		$option = get_option($this->plugin_name . '_payment_gateway', 'square');
-		$payment_gateway_key = (is_array($option)) ? array_pop($option) : $option;
-		$payment_gateway = false;
-		$payment_gateways = WC()->payment_gateways->payment_gateways();
-		if (is_array($payment_gateways) && array_key_exists($payment_gateway_key,$payment_gateways)) {
-			$payment_gateway = $payment_gateways[$payment_gateway_key];
+		if ( !class_exists( 'WooCommerce' ) ) {
+			add_settings_error( $this->plugin_name . '-notices', 'no-woocommerce', __("Please install and activate WooCommerce first", $this->plugin_name), 'error' ); 
+			$has_woocommerce = false;
 		}
 
-		$option = get_option($this->plugin_name . '_order_status', 'Processing');
-		$order_status = (is_array($option)) ? array_pop($option) : $option;
-		
-		$results = get_transient( $this->transient_labels['results'] );
-		$response = array();
-		if (is_array($results) && count($results)) {
-			if (!empty(trim($_GET['ids']))) {
-				$ids = array_unique(array_filter(explode(',',$_GET['ids'])));
-				if (count($ids)) {
-					foreach($ids as $id) {
-						$process = array(
-							'id' => $id,
-							'status' => 'Fail',
-							'msg' => array()
-						);
-						if (array_key_exists($id,$results)) {
-							$result = $results[$id];
-							$create_order = false;
-							$has_customer = false;
-
-							//check if we already imported the order
-							$s2w_query = new WP_Query(array(
-								'posts_per_page' => '1',
-								'post_type' => 'shop_order',
-								'post_status' => 'any',
-								'meta_query' => array(
-									'relation' => 'AND',
-									array(
-										'key' => '_s2w_square_pay_id',
-										'value' => $result['pay_id'],
-										'compare' => 'LIKE',
+		if ($has_woocommerce) {
+			$option = get_option($this->plugin_name . '_create_customer', 1);
+			$create_customer = (is_array($option)) ? array_pop($option) : $option;
+	
+			$option = get_option($this->plugin_name . '_partial_item_match', 1);
+			$partial_item_match = (is_array($option)) ? array_pop($option) : $option;
+			
+			$option = get_option($this->plugin_name . '_allow_guest_orders', 0);
+			$allow_guest_orders = (is_array($option)) ? array_pop($option) : $option;
+			
+			$option = get_option($this->plugin_name . '_payment_gateway', 'square');
+			$payment_gateway_key = (is_array($option)) ? array_pop($option) : $option;
+			$payment_gateway = false;
+			$payment_gateways = WC()->payment_gateways->payment_gateways();
+			if (is_array($payment_gateways) && array_key_exists($payment_gateway_key,$payment_gateways)) {
+				$payment_gateway = $payment_gateways[$payment_gateway_key];
+			}
+	
+			$option = get_option($this->plugin_name . '_order_status', 'Processing');
+			$order_status = (is_array($option)) ? array_pop($option) : $option;
+			
+			$results = get_transient( $this->transient_labels['results'] );
+			
+			if (is_array($results) && count($results)) {
+				if (!empty(trim($_GET['ids']))) {
+					$ids = array_unique(array_filter(explode(',',$_GET['ids'])));
+					if (count($ids)) {
+						foreach($ids as $id) {
+							$process = array(
+								'id' => $id,
+								'status' => 'Fail',
+								'msg' => array()
+							);
+							if (array_key_exists($id,$results)) {
+								$result = $results[$id];
+								$create_order = false;
+								$has_customer = false;
+	
+								//check if we already imported the order
+								$s2w_query = new WP_Query(array(
+									'posts_per_page' => '1',
+									'post_type' => 'shop_order',
+									'post_status' => 'any',
+									'meta_query' => array(
+										'relation' => 'AND',
+										array(
+											'key' => '_s2w_square_pay_id',
+											'value' => $result['pay_id'],
+											'compare' => 'LIKE',
+										)
 									)
-								)
-							));
-							if ($s2w_query->have_posts()) {
-								while ($s2w_query->have_posts()) {
-									$s2w_query->the_post();
-									$order_id = get_the_id();
-									$process['msg'][] = __("Transaction <b>{$result['pay_id']}</b> already exists with order #{$order_id} already exists", $this->plugin_name);
-									$process['status'] = __("Exists", $this->plugin_name);
-								}
-							} else {
-								//check products by sku first
-								$product_ids = array();
-								if (count($result['items'])) {
-									foreach($result['items'] as $item) {
-										if (!empty($item['sku'])) {
-											$product_id = wc_get_product_id_by_sku( $item['sku'] );
-											if ($product_id) {
-												$product_ids[$product_id] = $item['quantity'];
-											} else {
-												$process['msg'][] = __("No matching SKU (<i>{$item['name']}</i>) found for product: {$item['name']}", $this->plugin_name);	
-											}
-										} else {
-											$process['msg'][] = __("No SKU returned for: {$item['name']}", $this->plugin_name);
-										}
-									}
-
-									//we have matching wc products, let's create an order
-									if (count($product_ids)) { 
-										$create_order = true;
-										//or not, we if want all items matched
-										if (count($result['items']) != count($product_ids) && $partial_item_match != '1') {
-											$create_order = false;
-											$process['msg'][] = __("Not all SKU's were matched, halting with import. <i>Import a transaction even if not all SKU's are found</i> setting is not enabled. ", $this->plugin_name);
-											$process['status'] = __("Fail", $this->plugin_name);
-										} else {
-											$process['msg'][] = __("Only ".count($product_ids)." SKU's were matched, proceeding with import.", $this->plugin_name);
-										}
-									} else {
-										$process['msg'][] = __("No matching WooCommerce products matched", $this->plugin_name);
+								));
+								if ($s2w_query->have_posts()) {
+									while ($s2w_query->have_posts()) {
+										$s2w_query->the_post();
+										$order_id = get_the_id();
+										$process['msg'][] = __("Transaction <b>{$result['pay_id']}</b> already exists with order #{$order_id} already exists", $this->plugin_name);
+										$process['status'] = __("Exists", $this->plugin_name);
 									}
 								} else {
-									$process['msg'][] = __("No items returned for this transaction", $this->plugin_name);
-								}
-
-								if ($create_order) {
-									//check if we have a square customer
-									if (is_array($result['customer'])) {
-										$user = get_user_by('email', $result['customer']['email']);
-										
-										//create a user if we don't find any
-										if ($user === false && $create_customer == 1) {
-											// random password with 12 chars
-											$random_password = wp_generate_password();
-
-											// create new user with email as username & newly created pw
-											$user_id = wp_insert_user(array(
-												'user_pass' => $random_password,
-												'user_login' => $result['customer']['email'],
-												'user_email' => $result['customer']['email'],
-												'first_name' => $result['customer']['first_name'],
-												'last_name' => $result['customer']['last_name'],
-												'display_name' => $result['customer']['first_name'] . ' ' .  $result['customer']['last_name'],
-												'role' => 'customer', // woocommerce user role
-											));
-
-											if (is_numeric($user_id)) {
-												$address_fields = array(
-													'address_1',
-													'address_2',
-													'postcode',
-													'country',
-													'state',
-													'city',
-													'company',
-													'first_name',
-													'last_name',
-
-													'email',
-													'phone',
-												);
-												if (is_array($result['customer']['address'])) {
-													//append address info from make customer info
-													$result['customer']['address']['email'] = $result['customer']['email'];
-													$result['customer']['address']['phone'] = $result['customer']['phone'];
-
-													foreach(array('billing','shipping') as $type) {
-														foreach($address_fields as $field) {
-															update_user_meta( $user_id, "{$type}_{$field}", $result['customer']['address'][$field] );
-														}
-													}
+									//check products by sku first
+									$product_ids = array();
+									if (count($result['items'])) {
+										foreach($result['items'] as $item) {
+											if (!empty($item['sku'])) {
+												$product_id = wc_get_product_id_by_sku( $item['sku'] );
+												if ($product_id) {
+													$product_ids[$product_id] = $item['quantity'];
+												} else {
+													$process['msg'][] = __("No matching SKU (<i>{$item['name']}</i>) found for product: {$item['name']}", $this->plugin_name);	
 												}
-
-												$user = get_user_by('ID', $user_id);
-												$process['msg'][] = __("Created user id #{$user_id}", $this->plugin_name);
 											} else {
-												$process['msg'][] = __("unable to create user: {$result['customer']['email']}", $this->plugin_name);
-												s2w_log('wp_insert_user', $user_id);
+												$process['msg'][] = __("No SKU returned for: {$item['name']}", $this->plugin_name);
 											}
 										}
-
-										if ($user === false) {
-											if ($allow_guest_orders == '1') {
-												$has_customer = true;
-												$process['msg'][] = __("No user found for email: {$result['customer']['email']}. Processing as a guest order.", $this->plugin_name);
+	
+										//we have matching wc products, let's create an order
+										if (count($product_ids)) { 
+											$create_order = true;
+											//or not, we if want all items matched
+											if (count($result['items']) != count($product_ids) && $partial_item_match != '1') {
+												$create_order = false;
+												$process['msg'][] = __("Not all SKU's were matched, halting with import. <i>Import a transaction even if not all SKU's are found</i> setting is not enabled. ", $this->plugin_name);
+												$process['status'] = __("Fail", $this->plugin_name);
 											} else {
-												$process['msg'][] = __("No user found for email: {$result['customer']['email']}. Allow guest orders setting is disabled.", $this->plugin_name);
+												$process['msg'][] = __("Only ".count($product_ids)." SKU's were matched, proceeding with import.", $this->plugin_name);
 											}
 										} else {
-											$has_customer = true;
-											$process['msg'][] = __("User {$result['customer']['email']} found with id #{$user->ID}.", $this->plugin_name);
+											$process['msg'][] = __("No matching WooCommerce products matched", $this->plugin_name);
 										}
 									} else {
-										$process['msg'][] = __("No Square customer returned for this transactions", $this->plugin_name);
+										$process['msg'][] = __("No items returned for this transaction", $this->plugin_name);
+									}
+	
+									if ($create_order) {
+										//check if we have a square customer
+										if (is_array($result['customer'])) {
+											$user = get_user_by('email', $result['customer']['email']);
+											
+											//create a user if we don't find any
+											if ($user === false && $create_customer == 1) {
+												// random password with 12 chars
+												$random_password = wp_generate_password();
+	
+												// create new user with email as username & newly created pw
+												$user_id = wp_insert_user(array(
+													'user_pass' => $random_password,
+													'user_login' => $result['customer']['email'],
+													'user_email' => $result['customer']['email'],
+													'first_name' => $result['customer']['first_name'],
+													'last_name' => $result['customer']['last_name'],
+													'display_name' => $result['customer']['first_name'] . ' ' .  $result['customer']['last_name'],
+													'role' => 'customer', // woocommerce user role
+												));
+	
+												if (is_numeric($user_id)) {
+													$address_fields = array(
+														'address_1',
+														'address_2',
+														'postcode',
+														'country',
+														'state',
+														'city',
+														'company',
+														'first_name',
+														'last_name',
+	
+														'email',
+														'phone',
+													);
+													if (is_array($result['customer']['address'])) {
+														//append address info from make customer info
+														$result['customer']['address']['email'] = $result['customer']['email'];
+														$result['customer']['address']['phone'] = $result['customer']['phone'];
+	
+														foreach(array('billing','shipping') as $type) {
+															foreach($address_fields as $field) {
+																update_user_meta( $user_id, "{$type}_{$field}", $result['customer']['address'][$field] );
+															}
+														}
+													}
+	
+													$user = get_user_by('ID', $user_id);
+													$process['msg'][] = __("Created user id #{$user_id}", $this->plugin_name);
+												} else {
+													$process['msg'][] = __("unable to create user: {$result['customer']['email']}", $this->plugin_name);
+													s2w_log('wp_insert_user', $user_id);
+												}
+											}
+	
+											if ($user === false) {
+												if ($allow_guest_orders == '1') {
+													$has_customer = true;
+													$process['msg'][] = __("No user found for email: {$result['customer']['email']}. Processing as a guest order.", $this->plugin_name);
+												} else {
+													$process['msg'][] = __("No user found for email: {$result['customer']['email']}. Allow guest orders setting is disabled.", $this->plugin_name);
+												}
+											} else {
+												$has_customer = true;
+												$process['msg'][] = __("User {$result['customer']['email']} found with id #{$user->ID}.", $this->plugin_name);
+											}
+										} else {
+											$process['msg'][] = __("No Square customer returned for this transactions", $this->plugin_name);
+										}
+									}
+	
+									//we have our prodcts and user now we can create the order
+									if ($has_customer) {
+										$user_id = ($user === false) ? null : $user->ID;
+										$order = wc_create_order(array(
+											'status' => strtolower($order_status),
+											'customer_id' => $user_id
+										));
+	
+										if (is_array($result['customer']['address'])) {
+											$address = array(
+												'first_name' => $result['customer']['address']['first_name'],
+												'last_name'  => $result['customer']['address']['last_name'],
+												'company'    => $result['customer']['address']['company'],
+												'email'      => $result['customer']['email'],
+												'phone'      => $result['customer']['phone'],
+												'address_1'  => $result['customer']['address']['address_1'],
+												'address_2'  => $result['customer']['address']['address_2'],
+												'city'       => $result['customer']['address']['city'],
+												'state'      => $result['customer']['address']['state'],
+												'postcode'   => $result['customer']['address']['postcode'],
+												'country'    => $result['customer']['address']['country'],
+											);
+											$order->set_address( $address, 'billing' );
+											$order->set_address( $address, 'shipping' );
+										}
+										foreach($product_ids as $product_id => $quantity) {
+											$order->add_product( get_product( $product_id ), $quantity); // Use the product IDs to add
+										}
+										$order->calculate_totals();
+										$order->update_meta_data( '_s2w_square_pay_id', $result['pay_id'] );
+										//$order->update_status( strtolower($order_status), 'Order created by S2W-Payments - ', TRUE);
+	
+										$order_id = $order->save();
+	
+										$process['msg'][] = __("Order #{$order_id} created with status: {$order_status}", $this->plugin_name);
+										$process['status'] = __("Ok", $this->plugin_name);
 									}
 								}
-
-								//we have our prodcts and user now we can create the order
-								if ($has_customer) {
-									$user_id = ($user === false) ? null : $user->ID;
-									$order = wc_create_order(array(
-										'status' => strtolower($order_status),
-										'customer_id' => $user_id
-									));
-
-									if (is_array($result['customer']['address'])) {
-										$address = array(
-											'first_name' => $result['customer']['address']['first_name'],
-											'last_name'  => $result['customer']['address']['last_name'],
-											'company'    => $result['customer']['address']['company'],
-											'email'      => $result['customer']['email'],
-											'phone'      => $result['customer']['phone'],
-											'address_1'  => $result['customer']['address']['address_1'],
-											'address_2'  => $result['customer']['address']['address_2'],
-											'city'       => $result['customer']['address']['city'],
-											'state'      => $result['customer']['address']['state'],
-											'postcode'   => $result['customer']['address']['postcode'],
-											'country'    => $result['customer']['address']['country'],
-										);
-										$order->set_address( $address, 'billing' );
-										$order->set_address( $address, 'shipping' );
-									}
-									foreach($product_ids as $product_id => $quantity) {
-										$order->add_product( get_product( $product_id ), $quantity); // Use the product IDs to add
-									}
-									$order->calculate_totals();
-									$order->update_meta_data( '_s2w_square_pay_id', $result['pay_id'] );
-									//$order->update_status( strtolower($order_status), 'Order created by S2W-Payments - ', TRUE);
-
-									$order_id = $order->save();
-
-									$process['msg'][] = __("Order #{$order_id} created with status: {$order_status}", $this->plugin_name);
-									$process['status'] = __("Ok", $this->plugin_name);
-								}
+							} else {
+								$process['msg'][] = __("Transaction not found in search results", $this->plugin_name);
 							}
-						} else {
-							$process['msg'][] = __("Transaction not found in search results", $this->plugin_name);
+							array_push($response, $process);
 						}
-						array_push($response, $process);
 					}
+				} else {
+					add_settings_error( $this->plugin_name . '-import', 'no-results', __("No transactions given.", $this->plugin_name) ); 
 				}
 			} else {
-				add_settings_error( $this->plugin_name . '-import', 'no-results', __("No transactions given.", $this->plugin_name) ); 
+				add_settings_error( $this->plugin_name . '-import', 'no-results', __("No cached results found.", $this->plugin_name) ); 
 			}
-		} else {
-			add_settings_error( $this->plugin_name . '-import', 'no-results', __("No cached results found.", $this->plugin_name) ); 
 		}
 
 		include_once( 'partials/import-to-wc.php' );
