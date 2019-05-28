@@ -43,5 +43,37 @@
 				return false;
 			}
 		});
+
+		$('#search-payments').on('submit', function(evt) {
+			var $form = $(this);
+			var $Input = $('#airdatepicker');
+
+			if ($Input.val() == '') {
+				alert('Specify a date or date range first');
+				return false;
+			} else {
+				$form.css('padding', '8px 16px');
+				var $overlay = $("<div/>").css({
+					'background-color' : 'rgba(255,255,255,0.9)',
+					'width': '100%',
+					'height': '100%',
+					'position': 'absolute',
+					'top': '0px',
+					'left': '0px',
+					'zIndex': '100',
+					'opacity': '1',
+					'display': 'none',
+	
+					'letter-spacing': '2px',
+					'text-align': 'center',
+					'line-height': '46px'
+				}).attr('id', 'overlay')
+				.html('WORKING');
+				$form.append($overlay);
+	
+				$overlay.fadeIn(200, function() {
+				});
+			}
+		});
 	});
 })( jQuery );
