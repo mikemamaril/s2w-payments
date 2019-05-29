@@ -52,6 +52,9 @@ No, But I'll update the plugin as my schedule permits.
 * Submitted to Wordpress.org
 * Added assets for plugin submission
 
+= 1.0.7 =
+* Plugin is now also available on Wordpress.org https://wordpress.org/plugins/s2w-payments/advanced/
+
 == Upgrade Notice ==
 
 = 1.0.3 =
