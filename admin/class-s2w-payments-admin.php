@@ -805,11 +805,11 @@ class S2w_Payments_Admin {
 									if (count($result['items'])) {
 										foreach($result['items'] as $item) {
 											if (!empty($item['sku'])) {
-												$product_id = wc_get_product_id_by_sku( $item['sku'] );
+												$product_id = wc_get_product_id_by_sku( trim($item['sku']) );
 												if ($product_id) {
 													$product_ids[$product_id] = $item['quantity'];
 												} else {
-													$process['msg'][] = __("No matching SKU (<i>{$item['name']}</i>) found for product: {$item['name']}", $this->plugin_name);	
+													$process['msg'][] = __("No matching SKU (<i>{$item['sku']}</i>) found for product: {$item['name']}", $this->plugin_name);	
 												}
 											} else {
 												$process['msg'][] = __("No SKU returned for: {$item['name']}", $this->plugin_name);
@@ -931,11 +931,13 @@ class S2w_Payments_Admin {
 											$order->set_address( $address, 'billing' );
 											$order->set_address( $address, 'shipping' );
 										}
+
 										foreach($product_ids as $product_id => $quantity) {
-											$order->add_product( get_product( $product_id ), $quantity); // Use the product IDs to add
+											$order->add_product( wc_get_product( $product_id ), $quantity); // Use the product IDs to add
 										}
 										$order->calculate_totals();
 										$order->update_meta_data( '_s2w_square_pay_id', $result['pay_id'] );
+
 										//$order->update_status( strtolower($order_status), 'Order created by S2W-Payments - ', TRUE);
 	
 										$order_id = $order->save();

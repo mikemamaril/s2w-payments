@@ -1,6 +1,6 @@
 # s2w-payments
 
-Search fullfilled payments from Square and import them to WooCommerce as orders by matching product SKU's on both Square and WooCommerce.
+Search fulfilled payments from Square and import them to WooCommerce as orders by matching product SKU's on both Square and WooCommerce.
 
 ## Installation
 - Create your Square App to get credentials for the plugin here: https://squareup.com/us/en/developers

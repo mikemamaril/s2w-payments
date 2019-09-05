@@ -48,6 +48,10 @@
 				if (is_array($ids)) $ids = implode(',', $ids);
 	
 				if (!empty($ids)) {
+
+					wp_safe_redirect( admin_url('admin.php?page=s2w-payments-import-to-wc&ids='. $ids) );
+					exit;
+
 				}	
 			}
 		}
@@ -172,6 +176,7 @@
 	}
 ?>
 <div class="wrap">
+
 	<h2><?php echo esc_html(get_admin_page_title()); ?> (<i><?php echo ucwords($environment); ?></i>)</h2>
 	<hr class="wp-header-end">
 	<?php settings_errors( $this->plugin_name . '-notices' ); ?>

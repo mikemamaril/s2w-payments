@@ -69,7 +69,11 @@ class S2W_Updater {
 
 				$this->get_repository_info(); // Get the repo info
 
-				$out_of_date = version_compare( $this->github_response['tag_name'], $checked[ $this->basename ], 'gt' ); // Check if we're out of date
+				$out_of_date = false;
+				//make sure we get the version from github and our version as well
+				if (!empty($this->github_response['tag_name']) && !empty($checked[ $this->basename ])) {
+					$out_of_date = version_compare( $this->github_response['tag_name'], $checked[ $this->basename ], 'gt' ); // Check if we're out of date
+				}
 
 				if( $out_of_date ) {
 

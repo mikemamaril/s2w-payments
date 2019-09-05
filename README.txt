@@ -4,16 +4,16 @@ Donate link: https://www.paypal.me/mikemamaril
 Tags: woocommerce, square, import orders
 Requires at least: 4.7
 Tested up to: 5.2
-Stable tag: 4.7
+Stable tag: 1.0.7
 Requires PHP: 5.7
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Search fullfilled payments from Square and import them to WooCommerce as orders by matching product SKU's on both Square and WooCommerce.
+Search fulfilled payments from Square and import them to WooCommerce as orders by matching product SKU's on both Square and WooCommerce.
 
 == Description ==
 
-Connect to your Square API and filter Payments made and imported them into WooCommerce as new orders. This uses 
+Connect to your Square API and filter Payments made and import them into WooCommerce as new orders. This uses 
 the official V1 and V2 Square SDK and requires you to create an application to grant access.
 
 == Installation ==
